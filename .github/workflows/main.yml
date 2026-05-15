@@ -9,13 +9,14 @@ jobs:
         uses: actions/setup-python@v4
         with:
           python-version: '3.10'
-      - name: Install Dependencies
+      - name: Install Libraries
         run: |
+          python -m pip install --upgrade pip
           pip install pymupdf pillow pyinstaller
       - name: Build EXE
         run: |
           pyinstaller --noconsole --onefile main.py
-      - name: Upload App
+      - name: Upload
         uses: actions/upload-artifact@v3
         with:
           name: Sahaji-NetPoint-App
