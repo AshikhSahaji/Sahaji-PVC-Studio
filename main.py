@@ -6,99 +6,108 @@ import win32print
 import win32ui
 import os
 
-class SahajiActionStudio:
+class SahajiPVCStudioPro:
     def __init__(self, root):
         self.root = root
-        self.root.title("SAHAJI ACTION STUDIO - Pro PVC Solution")
-        self.root.geometry("1200x780")
-        self.root.configure(bg="#0f172a")
+        self.root.title("Sahaji PVC Studio v4.0 - All-in-One Indian Card Action")
+        self.root.geometry("1200x800")
+        self.root.configure(bg="#111827")
 
-        # --- Sidebar / Controls ---
-        sidebar = tk.Frame(root, bg="#1e293b", width=350)
-        sidebar.pack(side="left", fill="y", padx=5, pady=5)
+        # --- Navbar ---
+        navbar = tk.Frame(root, bg="#1f2937", height=50)
+        navbar.pack(fill="x")
+        tk.Label(navbar, text="SAHAJI PVC STUDIO v4.0", font=("Verdana", 15, "bold"), bg="#1f2937", fg="#10b981").pack(side="left", padx=20)
 
-        # Branding
-        tk.Label(sidebar, text="SAHAJI ACTION", font=("Verdana", 22, "bold"), bg="#1e293b", fg="#38bdf8").pack(pady=30)
+        # --- Sidebar ---
+        sidebar = tk.Frame(root, bg="#1f2937", width=300)
+        sidebar.pack(side="left", fill="y", padx=2, pady=2)
 
-        # Settings
-        lbl_style = {"bg": "#1e293b", "fg": "#94a3b8", "font": ("Arial", 9, "bold")}
-        
-        tk.Label(sidebar, text="--- DEFAULT PRINTER ---", **lbl_style).pack(pady=(10,5))
+        # Card Type Selection (যেমন ভিডিওতে ছিল)
+        tk.Label(sidebar, text="SELECT CARD TYPE", bg="#1f2937", fg="#9ca3af", font=("Arial", 9, "bold")).pack(pady=(20,5))
+        self.card_type = tk.StringVar(value="White Aadhaar Card")
+        card_menu = ttk.Combobox(sidebar, textvariable=self.card_type, values=["White Aadhaar Card", "Voter Card", "PAN Card", "Health / ABHA Card", "Ration Card"], state="readonly")
+        card_menu.pack(fill="x", padx=20, pady=5)
+
+        # Password Access
+        tk.Label(sidebar, text="PDF PASSWORD", bg="#1f2937", fg="#9ca3af", font=("Arial", 9, "bold")).pack(pady=(15,5))
+        self.password = tk.StringVar(value="RITI2000")
+        tk.Entry(sidebar, textvariable=self.password, font=("Arial", 12), bg="#374151", fg="white", bd=0, justify="center").pack(fill="x", padx=20, pady=5)
+
+        # Printing Performance/Setup
+        tk.Label(sidebar, text="--- PRINT SETTINGS ---", bg="#1f2937", fg="#9ca3af", font=("Arial", 9, "bold")).pack(pady=(20,5))
         self.printers = [p[2] for p in win32print.EnumPrinters(2)]
-        self.printer_var = tk.StringVar()
-        self.p_combo = ttk.Combobox(sidebar, textvariable=self.printer_var, values=self.printers, state="readonly", width=35)
-        self.p_combo.pack(pady=5, padx=20)
+        self.p_var = tk.StringVar()
+        self.p_combo = ttk.Combobox(sidebar, textvariable=self.p_var, values=self.printers, state="readonly")
+        self.p_combo.pack(fill="x", padx=20, pady=5)
         if self.printers: self.p_combo.current(0)
 
-        tk.Label(sidebar, text="--- PDF ACCESS PIN ---", **lbl_style).pack(pady=(15,5))
-        self.password = tk.StringVar(value="RITI2000") # আপনার দেওয়া নতুন পাসওয়ার্ড
-        tk.Entry(sidebar, textvariable=self.password, font=("Arial", 14), bg="#334155", fg="white", bd=0, justify="center").pack(fill="x", padx=40, pady=5)
-
-        # Main Actions
-        tk.Button(sidebar, text="📂 LOAD AADHAAR PDF", bg="#2563eb", fg="white", font=("Arial", 12, "bold"), bd=0, pady=18, cursor="hand2", command=self.load_pdf).pack(fill="x", padx=25, pady=40)
+        # Action Buttons
+        tk.Button(sidebar, text="SELECT CARD FILE", bg="#10b981", fg="white", font=("Arial", 11, "bold"), bd=0, pady=15, cursor="hand2", command=self.open_action).pack(fill="x", padx=20, pady=30)
         
-        tk.Label(sidebar, text="--- PRINT CONTROLS ---", **lbl_style).pack(pady=5)
-        tk.Button(sidebar, text="🖨️ PRINT FRONT SIDE", bg="#059669", fg="white", font=("Arial", 11, "bold"), bd=0, pady=15, command=lambda: self.execute_print("front")).pack(fill="x", padx=25, pady=10)
-        tk.Button(sidebar, text="🖨️ PRINT BACK SIDE", bg="#dc2626", fg="white", font=("Arial", 11, "bold"), bd=0, pady=15, command=lambda: self.execute_print("back")).pack(fill="x", padx=25, pady=10)
+        tk.Button(sidebar, text="PRINT FRONT SIDE", bg="#3b82f6", fg="white", font=("Arial", 11, "bold"), bd=0, pady=10, command=lambda: self.print_job("front")).pack(fill="x", padx=20, pady=5)
+        tk.Button(sidebar, text="PRINT BACK SIDE", bg="#ef4444", fg="white", font=("Arial", 11, "bold"), bd=0, pady=10, command=lambda: self.print_job("back")).pack(fill="x", padx=20, pady=5)
 
-        # --- Preview Canvas (Right) ---
-        display_area = tk.Frame(root, bg="#0f172a")
-        display_area.pack(side="right", fill="both", expand=True)
+        # --- Preview Canvas (The 'Ready for Output' Area) ---
+        self.preview_area = tk.Frame(root, bg="#111827")
+        self.preview_area.pack(side="right", fill="both", expand=True)
 
-        self.f_label = tk.Label(display_area, text="FRONT PREVIEW", bg="#1e293b", fg="#475569", font=("Arial", 14))
+        self.f_label = tk.Label(self.preview_area, text="[ FRONT PREVIEW ]", bg="#1f2937", fg="#4b5563", font=("Arial", 14))
         self.f_label.pack(pady=20, padx=50, fill="both", expand=True)
         
-        self.b_label = tk.Label(display_area, text="BACK PREVIEW", bg="#1e293b", fg="#475569", font=("Arial", 14))
+        self.b_label = tk.Label(self.preview_area, text="[ BACK PREVIEW ]", bg="#1f2937", fg="#4b5563", font=("Arial", 14))
         self.b_label.pack(pady=20, padx=50, fill="both", expand=True)
 
-        self.img_f = None
-        self.img_b = None
+        self.front_img = None
+        self.back_img = None
 
-    def load_pdf(self):
-        path = filedialog.askopenfilename(filetypes=[("PDF", "*.pdf")])
-        if not path: return
+    def open_action(self):
+        file = filedialog.askopenfilename(filetypes=[("Card Files", "*.pdf *.jpg *.png")])
+        if not file: return
         try:
-            doc = fitz.open(path)
-            if doc.is_encrypted:
-                doc.authenticate(self.password.get())
+            doc = fitz.open(file)
+            if doc.is_encrypted: doc.authenticate(self.password.get())
             
-            # High Resolution Rendering
-            page = doc[0]
-            pix = page.get_pixmap(matrix=fitz.Matrix(6, 6))
-            full = Image.frombytes("RGB", [pix.width, pix.height], pix.samples)
+            pix = doc[0].get_pixmap(matrix=fitz.Matrix(6, 6))
+            img = Image.frombytes("RGB", [pix.width, pix.height], pix.samples)
 
-            # নিখুঁত ক্রপিং প্যারামিটার (ই-আধার লেআউট অনুযায়ী)
-            # নিচের বাম পাশের অংশ (Back) এবং নিচের ডান পাশের অংশ (Front)
-            self.img_f = full.crop((3260, 3200, 5950, 4900)).resize((1012, 638), Image.LANCZOS)
-            self.img_b = full.crop((410, 3200, 3100, 4900)).resize((1012, 638), Image.LANCZOS)
+            # PVC Card Size Calibration (3.375 x 2.125 inches at 300 DPI)
+            pvc_w, pvc_h = 1012, 638 
+            
+            # Action Mapping (ফটোশপ একশনের মতো কার্ড অনুযায়ী ক্রপিং)
+            ctype = self.card_type.get()
+            if "Aadhaar" in ctype:
+                self.front_img = img.crop((3260, 3190, 5950, 4880)).resize((pvc_w, pvc_h), Image.LANCZOS)
+                self.back_img = img.crop((410, 3190, 3100, 4880)).resize((pvc_w, pvc_h), Image.LANCZOS)
+            elif "Voter" in ctype:
+                self.front_img = img.crop((500, 3000, 3300, 4800)).resize((pvc_w, pvc_h), Image.LANCZOS)
+                self.back_img = img.crop((3400, 3000, 6200, 4800)).resize((pvc_w, pvc_h), Image.LANCZOS)
+            else: # General Auto-Action
+                self.front_img = img.crop((500, 500, 3500, 2500)).resize((pvc_w, pvc_h), Image.LANCZOS)
+                self.back_img = img.crop((500, 2600, 3500, 4600)).resize((pvc_w, pvc_h), Image.LANCZOS)
 
-            # প্রিভিউ আপডেট
-            f_p = ImageTk.PhotoImage(self.img_f.resize((480, 302), Image.LANCZOS))
-            b_p = ImageTk.PhotoImage(self.img_b.resize((480, 302), Image.LANCZOS))
-
+            # Update Previews
+            f_p = ImageTk.PhotoImage(self.front_img.resize((500, 315), Image.LANCZOS))
+            b_p = ImageTk.PhotoImage(self.back_img.resize((500, 315), Image.LANCZOS))
             self.f_label.config(image=f_p, text="")
             self.f_label.image = f_p
             self.b_label.config(image=b_p, text="")
             self.b_label.image = b_p
-            messagebox.showinfo("Sahaji Studio", "Aadhaar Card Loaded Successfully!")
 
         except Exception as e:
-            messagebox.showerror("Error", "পাসওয়ার্ড ভুল অথবা ফাইলটি সঠিক নয়!")
+            messagebox.showerror("Error", f"Could not process card: {e}")
 
-    def execute_print(self, side):
-        card = self.img_f if side == "front" else self.img_b
-        if not card:
-            messagebox.showwarning("Warning", "আগে আধার ফাইলটি লোড করুন!")
-            return
-
-        printer = self.printer_var.get()
+    def print_job(self, side):
+        img = self.front_img if side == "front" else self.back_img
+        if not img: return
+        
+        printer = self.p_var.get()
         hDC = win32ui.CreateDC()
         hDC.CreatePrinterDC(printer)
-        hDC.StartDoc(f"Sahaji_{side}")
+        hDC.StartDoc(f"Sahaji_PVC_{side}")
         hDC.StartPage()
         
-        dib = ImageWin.Dib(card)
-        # প্রিন্টিং পজিশন (Center on PVC Area)
+        dib = ImageWin.Dib(img)
+        # Position for PVC Tray / Sheet
         dib.draw(hDC.GetHandleOutput(), (120, 120, 1132, 758)) 
         
         hDC.EndPage()
@@ -107,5 +116,5 @@ class SahajiActionStudio:
 
 if __name__ == "__main__":
     root = tk.Tk()
-    app = SahajiActionStudio(root)
+    app = SahajiPVCStudioPro(root)
     root.mainloop()
