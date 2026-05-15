@@ -1,106 +1,132 @@
 import fitz  # PyMuPDF
-from PIL import Image, ImageEnhance, ImageWin
+from PIL import Image, ImageEnhance, ImageTk
 import tkinter as tk
 from tkinter import filedialog, messagebox, ttk
-import os
 import win32print
 import win32ui
+import win32con
 
-class SahajiProStudio:
+class SahajiPrintStudio:
     def __init__(self, root):
         self.root = root
-        self.root.title("Sahaji Net Point - Advanced PVC Studio")
-        self.root.geometry("550x700")
-        self.root.configure(bg="#1e272e")
+        self.root.title("Sahaji Net Point - PVC Print Studio v3.0")
+        self.root.geometry("1000x700")
+        self.root.configure(bg="#1e1e1e")
 
-        # Branding
-        tk.Label(root, text="SAHAJI NET POINT", font=("Arial", 26, "bold"), bg="#1e272e", fg="#0fbcf9").pack(pady=20)
-        
-        # Printer Selection Frame
-        p_frame = tk.LabelFrame(root, text=" Select Your Printer ", bg="#1e272e", fg="white", font=("Arial", 10))
-        p_frame.pack(pady=10, padx=20, fill="x")
-        
-        self.printer_list = [p[2] for p in win32print.EnumPrinters(2)]
-        self.selected_printer = tk.StringVar()
-        self.printer_combo = ttk.Combobox(p_frame, textvariable=self.selected_printer, values=self.printer_list, state="readonly", width=40)
-        self.printer_combo.pack(pady=10, padx=10)
-        if self.printer_list: self.printer_combo.current(0)
+        # Navbar / Header
+        header = tk.Frame(root, bg="#2d3436", height=60)
+        header.pack(fill="x")
+        tk.Label(header, text="SAHAJI NET POINT STUDIO", font=("Arial", 18, "bold"), bg="#2d3436", fg="#00cec9").pack(side="left", padx=20, pady=10)
+
+        # Main Layout (Left: Controls, Right: Preview)
+        main_frame = tk.Frame(root, bg="#1e1e1e")
+        main_frame.pack(fill="both", expand=True, padx=10, pady=10)
+
+        # --- Sidebar / Controls ---
+        sidebar = tk.Frame(main_frame, bg="#2d3436", width=250)
+        sidebar.pack(side="left", fill="y", padx=5)
+
+        tk.Label(sidebar, text="SETTINGS", font=("Arial", 12, "bold"), bg="#2d3436", fg="white").pack(pady=10)
+
+        # Password Entry
+        tk.Label(sidebar, text="PDF Password:", bg="#2d3436", fg="#dfe6e9").pack(anchor="w", padx=10)
+        self.password = tk.StringVar(value="RITIC2000")
+        tk.Entry(sidebar, textvariable=self.password, font=("Arial", 11), bg="#3b3b3b", fg="white", insertbackground="white").pack(fill="x", padx=10, pady=5)
+
+        # Printer List
+        tk.Label(sidebar, text="Select Printer:", bg="#2d3436", fg="#dfe6e9").pack(anchor="w", padx=10, pady=(10,0))
+        self.printers = [p[2] for p in win32print.EnumPrinters(2)]
+        self.printer_var = tk.StringVar()
+        self.p_combo = ttk.Combobox(sidebar, textvariable=self.printer_var, values=self.printers, state="readonly")
+        self.p_combo.pack(fill="x", padx=10, pady=5)
+        if self.printers: self.p_combo.current(0)
+
+        # Print Mode
+        tk.Label(sidebar, text="Print Selection:", bg="#2d3436", fg="#dfe6e9").pack(anchor="w", padx=10, pady=(10,0))
+        self.print_mode = tk.StringVar(value="Front Only")
+        mode_menu = ttk.Combobox(sidebar, textvariable=self.print_mode, values=["Front Only", "Back Only", "Both Sides"], state="readonly")
+        mode_menu.pack(fill="x", padx=10, pady=5)
 
         # Action Buttons
-        btn_style = {"font": ("Arial", 12, "bold"), "width": 30, "pady": 12, "fg": "white", "cursor": "hand2"}
-        
-        tk.Button(root, text="ADHAAR (1-CLICK ACTION)", bg="#e67e22", command=lambda: self.process("aadhaar"), **btn_style).pack(pady=10)
-        tk.Button(root, text="VOTER / PAN ACTION", bg="#05c46b", command=lambda: self.process("voter"), **btn_style).pack(pady=10)
-        tk.Button(root, text="HEALTH / ABHA ACTION", bg="#3c40c6", command=lambda: self.process("health"), **btn_style).pack(pady=10)
+        tk.Button(sidebar, text="CHOOSE PDF FILE", bg="#0984e3", fg="white", font=("Arial", 10, "bold"), pady=10, command=self.load_pdf).pack(fill="x", padx=10, pady=20)
+        tk.Button(sidebar, text="PRINT NOW 🖨️", bg="#00b894", fg="white", font=("Arial", 12, "bold"), pady=15, command=self.execute_print).pack(fill="x", padx=10, pady=10)
 
-        self.status = tk.Label(root, text="Select Printer & Card Type to Start", bg="#1e272e", fg="#d2dae2")
-        self.status.pack(side="bottom", pady=20)
-
-    def process(self, mode):
-        file = filedialog.askopenfilename(filetypes=[("PDF/Images", "*.pdf *.jpg *.png")])
-        if not file: return
+        # --- Preview Area (Right) ---
+        self.preview_frame = tk.Frame(main_frame, bg="#121212")
+        self.preview_frame.pack(side="right", fill="both", expand=True, padx=5)
         
-        self.status.config(text="Extracting High Quality Images...", fg="#ffdd59")
-        self.root.update()
+        self.front_label = tk.Label(self.preview_frame, text="FRONT PREVIEW", bg="#121212", fg="#636e72")
+        self.front_label.pack(pady=20)
+        self.back_label = tk.Label(self.preview_frame, text="BACK PREVIEW", bg="#121212", fg="#636e72")
+        self.back_label.pack(pady=20)
+
+        self.front_img = None
+        self.back_img = None
+
+    def load_pdf(self):
+        file_path = filedialog.askopenfilename(filetypes=[("PDF Files", "*.pdf")])
+        if not file_path: return
 
         try:
-            doc = fitz.open(file)
-            pix = doc[0].get_pixmap(matrix=fitz.Matrix(6, 6))
-            img = Image.frombytes("RGB", [pix.width, pix.height], pix.samples)
-            pvc = (1012, 638) # Standard PVC Size
-
-            if mode == "aadhaar":
-                f, b = img.crop((450, 2900, 3100, 4700)), img.crop((3200, 2900, 5900, 4700))
-            elif mode == "voter":
-                f, b = img.crop((500, 3200, 3300, 5000)), img.crop((3400, 3200, 6200, 5000))
-            else:
-                f, b = img.crop((500, 500, 3500, 2500)), img.crop((500, 2600, 3500, 4600))
-
-            f, b = self.clean(f.resize(pvc, Image.LANCZOS)), self.clean(b.resize(pvc, Image.LANCZOS))
+            doc = fitz.open(file_path)
+            if doc.is_encrypted:
+                doc.authenticate(self.password.get())
             
-            # Print Choice Dialog
-            choice = messagebox.askyesnocancel("Print Option", "YES: Print FRONT Side\nNO: Print BACK Side\nCancel: Just Save")
-            
-            if choice is True: # Front
-                self.direct_print(f, "Front_Side")
-            elif choice is False: # Back
-                self.direct_print(b, "Back_Side")
-            else:
-                save_dir = filedialog.askdirectory()
-                if save_dir:
-                    f.save(os.path.join(save_dir, "Sahaji_Front.png"))
-                    b.save(os.path.join(save_dir, "Sahaji_Back.png"))
-                    messagebox.showinfo("Success", "Images Saved Successfully")
+            page = doc[0]
+            pix = page.get_pixmap(matrix=fitz.Matrix(5, 5))
+            full_img = Image.frombytes("RGB", [pix.width, pix.height], pix.samples)
+
+            # High-Precision Cropping for Aadhaar
+            # coordinates are calibrated for standard UIDAI Layout
+            self.front_img = full_img.crop((3250, 3180, 5950, 4880)).resize((1012, 638), Image.LANCZOS)
+            self.back_img = full_img.crop((400, 3180, 3100, 4880)).resize((1012, 638), Image.LANCZOS)
+
+            # UI Preview Scaling
+            f_prev = ImageTk.PhotoImage(self.front_img.resize((400, 252), Image.LANCZOS))
+            b_prev = ImageTk.PhotoImage(self.back_img.resize((400, 252), Image.LANCZOS))
+
+            self.front_label.config(image=f_prev, text="")
+            self.front_label.image = f_prev
+            self.back_label.config(image=b_prev, text="")
+            self.back_label.image = b_prev
 
         except Exception as e:
-            messagebox.showerror("Error", str(e))
+            messagebox.showerror("Error", f"Failed to open PDF: {e}")
 
-    def clean(self, img):
-        img = ImageEnhance.Contrast(img).enhance(1.15)
-        img = ImageEnhance.Sharpness(img).enhance(1.4)
-        return img
-
-    def direct_print(self, img, title):
-        printer = self.selected_printer.get()
-        if not printer: 
-            messagebox.showwarning("Warning", "Please select a printer first!")
+    def execute_print(self):
+        if not self.front_img:
+            messagebox.showwarning("Empty", "Please load a PDF first!")
             return
 
+        mode = self.print_mode.get()
+        if mode == "Front Only":
+            self.send_to_printer(self.front_img, "Front")
+        elif mode == "Back Only":
+            self.send_to_printer(self.back_img, "Back")
+        else:
+            self.send_to_printer(self.front_img, "Front")
+            messagebox.showinfo("Next", "Front side done. Flip your PVC card and press OK to print Back side.")
+            self.send_to_printer(self.back_img, "Back")
+
+    def send_to_printer(self, pil_img, side_name):
+        printer_name = self.printer_var.get()
         hDC = win32ui.CreateDC()
-        hDC.CreatePrinterDC(printer)
-        hDC.StartDoc(f"Sahaji_{title}")
+        hDC.CreatePrinterDC(printer_name)
+        
+        # Adjusting print positioning
+        hDC.StartDoc(f"Sahaji_Print_{side_name}")
         hDC.StartPage()
         
-        # Center card on the page
-        dib = ImageWin.Dib(img)
+        from PIL import ImageWin
+        dib = ImageWin.Dib(pil_img)
+        # Positioned roughly at the center of the PVC card area on printer
         dib.draw(hDC.GetHandleOutput(), (100, 100, 1112, 738)) 
         
         hDC.EndPage()
         hDC.EndDoc()
         hDC.DeleteDC()
-        self.status.config(text=f"{title} Sent to Printer", fg="#2ecc71")
 
 if __name__ == "__main__":
     root = tk.Tk()
-    app = SahajiProStudio(root)
+    app = SahajiPrintStudio(root)
     root.mainloop()
