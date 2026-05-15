@@ -6,110 +6,102 @@ import win32print
 import win32ui
 import os
 
-class SahajiActionProV4:
+class SahajiPVCStudioV6:
     def __init__(self, root):
         self.root = root
-        self.root.title("Sahaji PVC Studio v4.0 - Action Driven Studio")
-        self.root.geometry("1200x800")
-        self.root.configure(bg="#111827")
+        self.root.title("SAHAJI PVC STUDIO v6.0 - Epson Easy Card Action")
+        self.root.geometry("1250x850")
+        self.root.configure(bg="#0f172a")
 
-        # --- Sidebar / Action Controls ---
-        sidebar = tk.Frame(root, bg="#1f2937", width=350)
+        # --- Sidebar Controls ---
+        sidebar = tk.Frame(root, bg="#1e293b", width=350)
         sidebar.pack(side="left", fill="y", padx=5, pady=5)
 
-        tk.Label(sidebar, text="SAHAJI STUDIO", font=("Arial", 20, "bold"), bg="#1f2937", fg="#10b981").pack(pady=20)
+        tk.Label(sidebar, text="SAHAJI ACTION STUDIO", font=("Segoe UI", 18, "bold"), bg="#1e293b", fg="#38bdf8").pack(pady=25)
 
-        # কার্ড সিলেকশন মেনু
-        tk.Label(sidebar, text="CHOOSE ACTION TEMPLATE", bg="#1f2937", fg="#9ca3af", font=("Arial", 9, "bold")).pack(pady=(10,5))
-        self.action_type = tk.StringVar(value="Aadhaar Card (Color)")
-        action_list = ["Aadhaar Card (White)", "Aadhaar Card (Color)", "Voter Card (New)", "PAN Card (NSDL/UTI)", "Ayushman Card", "Health / ABHA Card"]
-        self.action_menu = ttk.Combobox(sidebar, textvariable=self.action_type, values=action_list, state="readonly", width=35)
-        self.action_menu.pack(pady=5, padx=20)
+        # কার্ড টাইপ মেনু
+        tk.Label(sidebar, text="SELECT SMART ACTION", bg="#1e293b", fg="#94a3b8", font=("Arial", 9, "bold")).pack(pady=(10, 5))
+        self.card_action = tk.StringVar(value="Aadhaar Card (Color)")
+        actions = ["Aadhaar Card (Color)", "Voter Card (New PVC)", "PAN Card Action", "Health/Ayushman Action"]
+        self.action_menu = ttk.Combobox(sidebar, textvariable=self.card_action, values=actions, state="readonly")
+        self.action_menu.pack(fill="x", padx=30, pady=5)
 
         # প্রিন্টার সেটিংস
-        tk.Label(sidebar, text="SELECT PRINTER", bg="#1f2937", fg="#9ca3af", font=("Arial", 9, "bold")).pack(pady=(15,5))
+        tk.Label(sidebar, text="PRINTER PERFORMANCE SETTINGS", bg="#1e293b", fg="#94a3b8", font=("Arial", 9, "bold")).pack(pady=(20, 5))
         self.printers = [p[2] for p in win32print.EnumPrinters(2)]
         self.p_var = tk.StringVar()
-        self.p_combo = ttk.Combobox(sidebar, textvariable=self.p_var, values=self.printers, state="readonly", width=35)
-        self.p_combo.pack(pady=5, padx=20)
+        self.p_combo = ttk.Combobox(sidebar, textvariable=self.p_var, values=self.printers, state="readonly")
+        self.p_combo.pack(fill="x", padx=30, pady=5)
         if self.printers: self.p_combo.current(0)
 
-        # পাসওয়ার্ড ইনপুট
-        tk.Label(sidebar, text="PDF PASSWORD (if any)", bg="#1f2937", fg="#9ca3af", font=("Arial", 9, "bold")).pack(pady=(15,5))
-        self.password = tk.StringVar(value="RITI2000")
-        tk.Entry(sidebar, textvariable=self.password, font=("Arial", 12), bg="#374151", fg="white", bd=0, justify="center").pack(fill="x", padx=40, pady=5)
-
         # মেইন বাটন
-        tk.Button(sidebar, text="📂 LOAD & RUN ACTION", bg="#10b981", fg="white", font=("Arial", 12, "bold"), bd=0, pady=15, command=self.run_card_action).pack(fill="x", padx=25, pady=35)
-        
-        tk.Label(sidebar, text="PRINT CONTROLS", bg="#1f2937", fg="#9ca3af", font=("Arial", 9, "bold")).pack(pady=5)
-        tk.Button(sidebar, text="PRINT FRONT SIDE", bg="#3b82f6", fg="white", font=("Arial", 11, "bold"), bd=0, pady=12, command=lambda: self.print_action("front")).pack(fill="x", padx=25, pady=8)
-        tk.Button(sidebar, text="PRINT BACK SIDE", bg="#ef4444", fg="white", font=("Arial", 11, "bold"), bd=0, pady=12, command=lambda: self.print_action("back")).pack(fill="x", padx=25, pady=8)
+        tk.Button(sidebar, text="📂 LOAD & RUN ACTION", bg="#2563eb", fg="white", font=("Arial", 11, "bold"), bd=0, pady=18, command=self.execute_action).pack(fill="x", padx=30, pady=40)
 
-        # --- Display Panel ---
-        display = tk.Frame(root, bg="#111827")
+        # প্রিন্ট বাটন
+        tk.Button(sidebar, text="🖨️ PRINT FRONT", bg="#059669", fg="white", font=("Arial", 11, "bold"), bd=0, pady=12, command=lambda: self.send_to_printer("front")).pack(fill="x", padx=30, pady=8)
+        tk.Button(sidebar, text="🖨️ PRINT BACK", bg="#dc2626", fg="white", font=("Arial", 11, "bold"), bd=0, pady=12, command=lambda: self.send_to_printer("back")).pack(fill="x", padx=30, pady=8)
+
+        # --- Preview Pane ---
+        display = tk.Frame(root, bg="#0f172a")
         display.pack(side="right", fill="both", expand=True)
 
-        self.f_preview = tk.Label(display, text="FRONT PREVIEW", bg="#1f2937", fg="#4b5563", font=("Arial", 16))
-        self.f_preview.pack(pady=20, padx=40, fill="both", expand=True)
+        self.f_view = tk.Label(display, text="FRONT PREVIEW", bg="#1e293b", fg="#475569", font=("Arial", 14))
+        self.f_view.pack(pady=20, padx=40, fill="both", expand=True)
         
-        self.b_preview = tk.Label(display, text="BACK PREVIEW", bg="#1f2937", fg="#4b5563", font=("Arial", 16))
-        self.b_preview.pack(pady=20, padx=40, fill="both", expand=True)
+        self.b_view = tk.Label(display, text="BACK PREVIEW", bg="#1e293b", fg="#475569", font=("Arial", 14))
+        self.b_view.pack(pady=20, padx=40, fill="both", expand=True)
 
-        self.img_f = None
-        self.img_b = None
+        self.front_card = None
+        self.back_card = None
 
-    def run_card_action(self):
-        file_path = filedialog.askopenfilename(filetypes=[("PDF/Images", "*.pdf *.jpg *.png")])
+    def execute_action(self):
+        file_path = filedialog.askopenfilename(filetypes=[("Documents", "*.pdf *.jpg *.png")])
         if not file_path: return
         try:
             doc = fitz.open(file_path)
-            if doc.is_encrypted: doc.authenticate(self.password.get())
+            # ভোটার কার্ড বা আধারের জন্য পাসওয়ার্ড চেক
+            if doc.is_encrypted: doc.authenticate("RITI2000")
             
-            # Action ফাইল অনুযায়ী হাই-রেজোলিউশন (300 DPI) সেটআপ
-            pix = doc[0].get_pixmap(matrix=fitz.Matrix(6, 6))
-            full = Image.frombytes("RGB", [pix.width, pix.height], pix.samples)
+            page = doc[0]
+            pix = page.get_pixmap(matrix=fitz.Matrix(6, 6))
+            img = Image.frombytes("RGB", [pix.width, pix.height], pix.samples)
 
             pvc_w, pvc_h = 1012, 638 
-            selected = self.action_type.get()
+            mode = self.card_action.get()
 
-            # ফটোশপ অ্যাকশন ফাইল অনুযায়ী ক্রপিং কোঅর্ডিনেট সেটআপ
-            if "Aadhaar" in selected:
-                # আপনার অ্যাকশন ফাইলের মতোই ফ্রন্ট এবং ব্যাক আলাদা করা
-                self.img_f = full.crop((3260, 3190, 5950, 4880)).resize((pvc_w, pvc_h), Image.LANCZOS)
-                self.img_b = full.crop((410, 3190, 3100, 4880)).resize((pvc_w, pvc_h), Image.LANCZOS)
-            elif "Voter" in selected:
-                self.img_f = full.crop((500, 3050, 3300, 4850)).resize((pvc_w, pvc_h), Image.LANCZOS)
-                self.img_b = full.crop((3350, 3050, 6150, 4850)).resize((pvc_w, pvc_h), Image.LANCZOS)
-            else: # প্যান বা হেলথ কার্ডের জন্য ডিফল্ট অ্যাকশন
-                self.img_f = full.crop((500, 500, 3500, 2500)).resize((pvc_w, pvc_h), Image.LANCZOS)
-                self.img_b = full.crop((500, 2600, 3500, 4600)).resize((pvc_w, pvc_h), Image.LANCZOS)
-
-            # অটো-এনহ্যান্সমেন্ট (অ্যাকশন ফাইলের Levels কমান্ডের মতো)
-            self.img_f = self.apply_action_effects(self.img_f)
-            self.img_b = self.apply_action_effects(self.img_b)
+            # আপনার EPSON ACTION l8050 অনুযায়ী ক্রপিং রুলস
+            if "Voter" in mode:
+                # নতুন ভোটার কার্ডের সামনের ও পেছনের অংশ 
+                self.front_card = img.crop((400, 300, 3200, 2050)).resize((pvc_w, pvc_h), Image.LANCZOS)
+                self.back_card = img.crop((400, 2150, 3200, 3900)).resize((pvc_w, pvc_h), Image.LANCZOS)
+            elif "Aadhaar" in mode:
+                self.front_card = img.crop((3260, 3190, 5950, 4880)).resize((pvc_w, pvc_h), Image.LANCZOS)
+                self.back_card = img.crop((410, 3190, 3100, 4880)).resize((pvc_w, pvc_h), Image.LANCZOS)
+            
+            # Action Levels  প্রয়োগ করা
+            self.front_card = self.apply_enhance(self.front_card)
+            self.back_card = self.apply_enhance(self.back_card)
 
             # প্রিভিউ আপডেট
-            f_p = ImageTk.PhotoImage(self.img_f.resize((480, 302), Image.LANCZOS))
-            b_p = ImageTk.PhotoImage(self.img_b.resize((480, 302), Image.LANCZOS))
-            self.f_preview.config(image=f_p, text="")
-            self.f_preview.image = f_p
-            self.b_preview.config(image=b_p, text="")
-            self.b_preview.image = b_p
+            f_img = ImageTk.PhotoImage(self.front_card.resize((500, 315), Image.LANCZOS))
+            b_img = ImageTk.PhotoImage(self.back_card.resize((500, 315), Image.LANCZOS))
+            self.f_view.config(image=f_img, text="")
+            self.f_view.image = f_img
+            self.b_view.config(image=b_img, text="")
+            self.b_view.image = b_img
 
         except Exception as e:
-            messagebox.showerror("Error", f"Action execution failed: {e}")
+            messagebox.showerror("Error", f"Action failed: {e}")
 
-    def apply_action_effects(self, img):
-        # অ্যাকশন ফাইলের 'Levels' এবং 'Contrast' কমান্ড নকল করা
+    def apply_enhance(self, img):
+        # অ্যাকশন ফাইলের Levels এবং Contrast এর মতো এনহ্যান্সমেন্ট [cite: 839, 870]
         img = ImageEnhance.Contrast(img).enhance(1.2)
-        img = ImageEnhance.Sharpness(img).enhance(1.5)
-        img = ImageEnhance.Brightness(img).enhance(1.05)
+        img = ImageEnhance.Sharpness(img).enhance(1.4)
         return img
 
-    def print_action(self, side):
-        card = self.img_f if side == "front" else self.img_b
-        if not card: return
+    def send_to_printer(self, side):
+        target = self.front_card if side == "front" else self.back_card
+        if not target: return
         
         p_name = self.p_var.get()
         hDC = win32ui.CreateDC()
@@ -117,8 +109,8 @@ class SahajiActionProV4:
         hDC.StartDoc(f"Sahaji_Action_{side}")
         hDC.StartPage()
         
-        dib = ImageWin.Dib(card)
-        # আপনার প্রিন্টার ট্রের পজিশন অনুযায়ী মার্জিন সেটআপ
+        dib = ImageWin.Dib(target)
+        # Epson Easy Card Tray এর জন্য নির্দিষ্ট মার্জিন 
         dib.draw(hDC.GetHandleOutput(), (120, 120, 1132, 758)) 
         
         hDC.EndPage()
@@ -127,5 +119,5 @@ class SahajiActionProV4:
 
 if __name__ == "__main__":
     root = tk.Tk()
-    app = SahajiActionProV4(root)
+    app = SahajiPVCStudioV6(root)
     root.mainloop()
