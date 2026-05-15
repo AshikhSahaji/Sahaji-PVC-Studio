@@ -12,7 +12,7 @@ jobs:
       - name: Install Dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install pymupdf pillow pyinstaller
+          pip install pymupdf pillow pyinstaller pywin32
       - name: Create EXE
         run: |
           pyinstaller --noconsole --onefile main.py
