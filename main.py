@@ -6,93 +6,99 @@ import win32print
 import win32ui
 import os
 
-class SahajiActionStudioV3:
+class SahajiActionPro:
     def __init__(self, root):
         self.root = root
-        self.root.title("Sahaji Net Point - All-in-One PVC Studio (v2.0)")
+        self.root.title("SAHAJI NET POINT - ADVANCED PVC STUDIO")
         self.root.geometry("1100x750")
-        self.root.configure(bg="#121212")
+        self.root.configure(bg="#0f172a")
 
-        # --- Sidebar Controls ---
-        sidebar = tk.Frame(root, bg="#1e1e1e", width=300)
+        # --- Sidebar / Controls ---
+        sidebar = tk.Frame(root, bg="#1e293b", width=320)
         sidebar.pack(side="left", fill="y", padx=5, pady=5)
 
-        # Branding
-        tk.Label(sidebar, text="SAHAJI STUDIO", font=("Arial", 18, "bold"), bg="#1e1e1e", fg="#00cec9").pack(pady=20)
+        # লোগো বা দোকানের নাম
+        tk.Label(sidebar, text="SAHAJI ACTION", font=("Verdana", 20, "bold"), bg="#1e293b", fg="#38bdf8").pack(pady=30)
 
-        # Printer Section
-        tk.Label(sidebar, text="--- PRINTER SETUP ---", bg="#1e1e1e", fg="#636e72", font=("Arial", 8, "bold")).pack()
+        # প্রিন্টার সেটিংস
+        tk.Label(sidebar, text="--- SELECT PRINTER ---", bg="#1e293b", fg="#94a3b8", font=("Arial", 9, "bold")).pack(pady=(10,5))
         self.printers = [p[2] for p in win32print.EnumPrinters(2)]
         self.printer_var = tk.StringVar()
         self.p_combo = ttk.Combobox(sidebar, textvariable=self.printer_var, values=self.printers, state="readonly", width=35)
         self.p_combo.pack(pady=5, padx=20)
         if self.printers: self.p_combo.current(0)
 
-        # Action Buttons
-        btn_style = {"font": ("Arial", 10, "bold"), "bd": 0, "pady": 12, "cursor": "hand2", "fg": "white"}
+        # পাসওয়ার্ড সেটিংস
+        tk.Label(sidebar, text="--- PDF PASSWORD ---", bg="#1e293b", fg="#94a3b8", font=("Arial", 9, "bold")).pack(pady=(15,5))
+        self.password = tk.StringVar(value="RITIC2000")
+        tk.Entry(sidebar, textvariable=self.password, font=("Arial", 12), bg="#334155", fg="white", bd=0, justify="center").pack(fill="x", padx=40, pady=5)
+
+        # ফাইল ওপেন বাটন
+        tk.Button(sidebar, text="📂 OPEN ORIGINAL AADHAAR", bg="#2563eb", fg="white", font=("Arial", 11, "bold"), bd=0, pady=15, cursor="hand2", command=self.load_pdf).pack(fill="x", padx=25, pady=40)
         
-        tk.Button(sidebar, text="📂 OPEN AADHAAR (AUTO)", bg="#0984e3", command=lambda: self.process_pdf("aadhaar"), **btn_style).pack(fill="x", padx=25, pady=20)
+        # প্রিন্ট বাটন সমূহ
+        tk.Label(sidebar, text="--- PRINT OPERATIONS ---", bg="#1e293b", fg="#94a3b8", font=("Arial", 9, "bold")).pack(pady=5)
+        tk.Button(sidebar, text="🖨️ PRINT FRONT SIDE", bg="#059669", fg="white", font=("Arial", 11, "bold"), bd=0, pady=12, command=lambda: self.print_card("front")).pack(fill="x", padx=25, pady=8)
+        tk.Button(sidebar, text="🖨️ PRINT BACK SIDE", bg="#dc2626", fg="white", font=("Arial", 11, "bold"), bd=0, pady=12, command=lambda: self.print_card("back")).pack(fill="x", padx=25, pady=8)
+
+        # --- Preview Canvas (Right Side) ---
+        preview_area = tk.Frame(root, bg="#0f172a")
+        preview_area.pack(side="right", fill="both", expand=True)
+
+        self.f_label = tk.Label(preview_area, text="[ FRONT PREVIEW ]", bg="#1e293b", fg="#475569", font=("Arial", 14))
+        self.f_label.pack(pady=20, padx=40, fill="both", expand=True)
         
-        tk.Label(sidebar, text="--- PRINT ACTIONS ---", bg="#1e1e1e", fg="#636e72", font=("Arial", 8, "bold")).pack()
-        tk.Button(sidebar, text="🖨️ PRINT FRONT SIDE", bg="#00b894", command=lambda: self.print_card("front"), **btn_style).pack(fill="x", padx=25, pady=8)
-        tk.Button(sidebar, text="🖨️ PRINT BACK SIDE", bg="#d63031", command=lambda: self.print_card("back"), **btn_style).pack(fill="x", padx=25, pady=8)
+        self.b_label = tk.Label(preview_area, text="[ BACK PREVIEW ]", bg="#1e293b", fg="#475569", font=("Arial", 14))
+        self.b_label.pack(pady=20, padx=40, fill="both", expand=True)
 
-        # --- Preview Panel ---
-        preview_pane = tk.Frame(root, bg="#0f0f0f")
-        preview_pane.pack(side="right", fill="both", expand=True)
+        self.img_f = None
+        self.img_b = None
 
-        self.f_preview = tk.Label(preview_pane, text="[ FRONT SIDE PREVIEW ]", bg="#1a1a1a", fg="#444", font=("Arial", 14))
-        self.f_preview.pack(pady=15, padx=20, fill="both", expand=True)
-        
-        self.b_preview = tk.Label(preview_pane, text="[ BACK SIDE PREVIEW ]", bg="#1a1a1a", fg="#444", font=("Arial", 14))
-        self.b_preview.pack(pady=15, padx=20, fill="both", expand=True)
-
-        self.front_data = None
-        self.back_data = None
-
-    def process_pdf(self, mode):
+    def load_pdf(self):
         path = filedialog.askopenfilename(filetypes=[("PDF", "*.pdf")])
         if not path: return
         try:
             doc = fitz.open(path)
             if doc.is_encrypted:
-                doc.authenticate("RITIC2000") # আপনার দেওয়া পাসওয়ার্ড
+                doc.authenticate(self.password.get())
             
+            # হাই-রেজোলিউশন রেন্ডারিং
             page = doc[0]
             pix = page.get_pixmap(matrix=fitz.Matrix(6, 6))
-            img = Image.frombytes("RGB", [pix.width, pix.height], pix.samples)
+            full = Image.frombytes("RGB", [pix.width, pix.height], pix.samples)
 
-            # Dizi Print স্টাইল ক্রপিং (অরিজিনাল আধার লেআউট অনুযায়ী)
-            self.front_data = img.crop((3260, 3190, 5950, 4880)).resize((1012, 638), Image.LANCZOS)
-            self.back_data = img.crop((410, 3190, 3100, 4880)).resize((1012, 638), Image.LANCZOS)
+            # আধার কার্ডের নিচের অংশের নিখুঁত ক্রপিং (PVC Standard)
+            # Coordinates optimized for Original E-Aadhaar PDF
+            self.img_f = full.crop((3260, 3190, 5950, 4880)).resize((1012, 638), Image.LANCZOS)
+            self.img_b = full.crop((410, 3190, 3100, 4880)).resize((1012, 638), Image.LANCZOS)
 
-            # প্রিভিউ দেখানো
-            f_img = ImageTk.PhotoImage(self.front_data.resize((480, 302), Image.LANCZOS))
-            b_img = ImageTk.PhotoImage(self.back_data.resize((480, 302), Image.LANCZOS))
+            # ছবি স্ক্রিনে দেখানোর জন্য
+            f_prev = ImageTk.PhotoImage(self.img_f.resize((450, 284), Image.LANCZOS))
+            b_prev = ImageTk.PhotoImage(self.img_b.resize((450, 284), Image.LANCZOS))
 
-            self.f_preview.config(image=f_img, text="")
-            self.f_preview.image = f_img
-            self.b_preview.config(image=b_img, text="")
-            self.b_preview.image = b_img
-            messagebox.showinfo("Sahaji Studio", "Card is ready for printing!")
+            self.f_label.config(image=f_prev, text="")
+            self.f_label.image = f_prev
+            self.b_label.config(image=b_prev, text="")
+            self.b_label.image = b_prev
+            messagebox.showinfo("Sahaji Studio", "Card Loaded! Select side to print.")
 
         except Exception as e:
-            messagebox.showerror("Error", "ফাইলটি ওপেন করা সম্ভব হয়নি। পাসওয়ার্ড বা ফাইল চেক করুন।")
+            messagebox.showerror("Error", "ফাইলটি খুলতে সমস্যা হচ্ছে। পাসওয়ার্ড সঠিক কি না দেখুন।")
 
     def print_card(self, side):
-        img_to_print = self.front_data if side == "front" else self.back_data
-        if not img_to_print:
-            messagebox.showwarning("Warning", "আগে একটি পিডিএফ ফাইল লোড করুন!")
+        card_to_print = self.img_f if side == "front" else self.img_b
+        if not card_to_print:
+            messagebox.showwarning("Warning", "আগে একটি আধার ফাইল লোড করুন!")
             return
 
-        p_name = self.printer_var.get()
+        printer_name = self.printer_var.get()
         hDC = win32ui.CreateDC()
-        hDC.CreatePrinterDC(p_name)
+        hDC.CreatePrinterDC(printer_name)
         hDC.StartDoc(f"Sahaji_Print_{side}")
         hDC.StartPage()
         
-        dib = ImageWin.Dib(img_to_print)
-        # প্রিন্টারের কাগজে সঠিক পজিশনে কার্ড বসানো
+        dib = ImageWin.Dib(card_to_print)
+        # প্রিন্টারের ট্রে-তে কার্ড পজিশন অ্যাডজাস্টমেন্ট
         dib.draw(hDC.GetHandleOutput(), (120, 120, 1132, 758)) 
         
         hDC.EndPage()
@@ -101,5 +107,5 @@ class SahajiActionStudioV3:
 
 if __name__ == "__main__":
     root = tk.Tk()
-    app = SahajiActionStudioV3(root)
+    app = SahajiActionPro(root)
     root.mainloop()
